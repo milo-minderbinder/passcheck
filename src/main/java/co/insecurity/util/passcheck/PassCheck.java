@@ -1,10 +1,9 @@
 package co.insecurity.util.passcheck;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Properties;
 
@@ -25,8 +24,7 @@ public class PassCheck {
 	
 	public PassCheck() throws IOException {
 		properties = loadProperties();
-		ArrayList<String> pwList = loadPasswords(
-				new File(properties.getProperty("datafile")));
+		ArrayList<String> pwList = loadPasswords(properties.getProperty("datafile"));
 		fpProbability = Double.parseDouble(
 				properties.getProperty("falsePositiveProbability"));
 		numExpectedElements = pwList.size();
@@ -44,22 +42,19 @@ public class PassCheck {
 		return props;
 	}
 	
-	private ArrayList<String> loadPasswords(File dataFile) {
-		LOG.info("Loading passwords from file: {}", dataFile.getAbsolutePath());
+	private ArrayList<String> loadPasswords(String fileName) {
+		LOG.info("Loading passwords from file: {}", fileName);
 		ArrayList<String> passwords = new ArrayList<String>();
-		try (BufferedReader reader = new BufferedReader(new FileReader(dataFile))){
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+				PassCheck.class.getClassLoader().getResourceAsStream(fileName)))){
 			String line = null;
 			while ((line = reader.readLine()) != null) {
 				String[] item = line.split("\t");
 				passwords.add(item[0]);
 			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			LOG.error("Could not open data file: {}", dataFile.getAbsolutePath());
-			return null;
 		} catch (IOException e) {
 			e.printStackTrace();
-			LOG.error("Error while reading data file: {}", dataFile.getAbsolutePath());
+			LOG.error("Error while reading data file: {}", fileName);
 			return null;
 		}
 		return passwords;
