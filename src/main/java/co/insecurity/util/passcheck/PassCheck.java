@@ -1,8 +1,10 @@
 package co.insecurity.util.passcheck;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -15,7 +17,10 @@ import co.insecurity.util.BloomFilter;
 public class PassCheck {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PassCheck.class);
+	private static final String DEFAULT_DATA_FILE = "passcheck.dat";
+	private static final String DEFAULT_FP_PROBABILITY = "0.001";
 	
+	private InputStream dataFile;
 	private double fpProbability;
 	private int numExpectedElements;
 	private BloomFilter<String> filter;
@@ -35,11 +40,30 @@ public class PassCheck {
 		filter.addAll(pwList);
 	}
 	
-	private Properties loadProperties() throws IOException {
+	private Properties loadProperties() {
 		Properties props = new Properties();
-		props.load(PassCheck.class.
-				getClassLoader().getResourceAsStream("passcheck.properties"));
+		try {
+			props.load(PassCheck.class.
+					getClassLoader().getResourceAsStream("passcheck.properties"));
+		} catch (IOException e) {
+			LOG.error("Could not load configuration properties from passcheck.properties");
+			LOG.debug(e.getMessage());
+		}
+		fpProbability = Double.parseDouble(
+				props.getProperty("falsePositiveProbability", DEFAULT_FP_PROBABILITY));
+		if (props.containsKey("datafile")) {
+			try {
+				dataFile = new FileInputStream(props.getProperty("datafile"));
+			} catch (FileNotFoundException e) {
+				LOG.error("Could not open data file specified in passcheck.properties: {}", dataFile);
+				LOG.debug(e.getMessage());
+			}
+		}
 		return props;
+	}
+	
+	private void loadDefaultData() {
+		dataFile = PassCheck.class.getClassLoader().getResourceAsStream(DEFAULT_DATA_FILE);
 	}
 	
 	private ArrayList<String> loadPasswords(String fileName) {
