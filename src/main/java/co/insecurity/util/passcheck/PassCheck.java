@@ -1,13 +1,13 @@
 package co.insecurity.util.passcheck;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Properties;
+import java.util.TreeSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,30 +17,25 @@ import co.insecurity.util.BloomFilter;
 public class PassCheck {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PassCheck.class);
-	private static final String DEFAULT_DATA_FILE = "passcheck.dat";
+	private static final Path DEFAULT_DATA_FILE = 
+			Paths.get(PassCheck.class.getResource("/passcheck.dat").getPath());
 	private static final String DEFAULT_FP_PROBABILITY = "0.001";
 	
-	private InputStream dataFile;
+	private Path dataFile;
 	private double fpProbability;
-	private int numExpectedElements;
+	private int minLength;
+	private int maxLength;
+	private int maxSize;
+	private boolean ignoreCase;
 	private BloomFilter<String> filter;
-	private Properties properties;
 	
 	
-	public PassCheck() throws IOException {
-		properties = loadProperties();
-		ArrayList<String> pwList = loadPasswords(properties.getProperty("datafile"));
-		fpProbability = Double.parseDouble(
-				properties.getProperty("falsePositiveProbability"));
-		numExpectedElements = pwList.size();
-		LOG.info("Creating BloomFilter with falsePositiveProbability={} and expectedNumberOfElements={}", 
-				fpProbability, numExpectedElements);
-		filter = new BloomFilter<String>(fpProbability, numExpectedElements);
-		LOG.debug("Adding {} passwords to filter...", pwList.size());
-		filter.addAll(pwList);
+	public PassCheck() {
+		loadConfig();
+		filter = createFilter();
 	}
 	
-	private Properties loadProperties() {
+	private void loadConfig() {
 		Properties props = new Properties();
 		try {
 			props.load(PassCheck.class.
@@ -49,42 +44,78 @@ public class PassCheck {
 			LOG.error("Could not load configuration properties from passcheck.properties");
 			LOG.debug(e.getMessage());
 		}
+
 		fpProbability = Double.parseDouble(
 				props.getProperty("falsePositiveProbability", DEFAULT_FP_PROBABILITY));
+		
 		if (props.containsKey("datafile")) {
-			try {
-				dataFile = new FileInputStream(props.getProperty("datafile"));
-			} catch (FileNotFoundException e) {
-				LOG.error("Could not open data file specified in passcheck.properties: {}", dataFile);
-				LOG.debug(e.getMessage());
-			}
-		}
-		return props;
+			Path customDataFile = Paths.get(props.getProperty("datafile"));
+			if (customDataFile.toFile().isFile())
+				dataFile = customDataFile;
+			else
+				dataFile = DEFAULT_DATA_FILE;
+		} else 
+			dataFile = DEFAULT_DATA_FILE;
+		
+		minLength = Integer.parseInt(props.getProperty("minPasswordLength", "-1"));
+		maxLength = Integer.parseInt(props.getProperty("maxPasswordLength", "-1"));
+		maxSize = Integer.parseInt(props.getProperty("maxNumPasswords", "-1"));
+		ignoreCase = Boolean.parseBoolean(props.getProperty("ignoreCase", "false"));
 	}
 	
-	private void loadDefaultData() {
-		dataFile = PassCheck.class.getClassLoader().getResourceAsStream(DEFAULT_DATA_FILE);
-	}
-	
-	private ArrayList<String> loadPasswords(String fileName) {
-		LOG.info("Loading passwords from file: {}", fileName);
-		ArrayList<String> passwords = new ArrayList<String>();
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-				PassCheck.class.getClassLoader().getResourceAsStream(fileName)))){
+	private TreeSet<String> loadPasswordData() {
+		LOG.info("Loading password data from file: {}", dataFile);
+		TreeSet<String> passwordSet = new TreeSet<String>();
+		int numAdded = 0;
+		try (BufferedReader reader = 
+				Files.newBufferedReader(dataFile, Charset.forName("ISO-8859-1"))){
 			String line = null;
 			while ((line = reader.readLine()) != null) {
 				String[] item = line.split("\t");
-				passwords.add(item[0]);
+				if ((minLength != -1) && (minLength > Integer.parseInt(item[2])))
+					continue;
+				if ((maxLength != -1) && (maxLength < Integer.parseInt(item[2])))
+					continue;
+				if ((maxSize != -1) && (numAdded++ >= maxSize))
+					return passwordSet;
+				if (ignoreCase)
+					passwordSet.add(item[0].toLowerCase());
+				else
+					passwordSet.add(item[0]);
+				passwordSet.add(item[0]);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			LOG.error("Error while reading data file: {}", fileName);
+			LOG.error("Error while processing data file: {}", dataFile);
 			return null;
 		}
-		return passwords;
+		return passwordSet;
+	}
+	
+	private BloomFilter<String> createFilter() {
+		TreeSet<String> passwordSet = loadPasswordData();
+		LOG.info("Creating BloomFilter with falsePositiveProbability={} and expectedNumberOfElements={}", 
+				fpProbability, passwordSet.size());
+		filter = new BloomFilter<String>(fpProbability, passwordSet.size());
+		
+		LOG.debug("Adding {} passwords to filter...", passwordSet.size());
+		filter.addAll(passwordSet);
+
+		return filter;
 	}
 	
 	public boolean isCommon(String password) {
+		if (ignoreCase)
+			password = password.toLowerCase();
+		
+		if ((minLength != -1) && password.length() < minLength) {
+			LOG.debug("Password did not meet minimum length requirements: {}", password);
+			return false;
+		}
+		if ((maxLength != -1) && password.length() > maxLength) {
+			LOG.debug("Password did not meet maximum length requirements: {}", password);
+			return false;
+		}
 		if (filter.contains(password)) {
 			LOG.debug("Found password in filter: {}", password);
 			return true;
