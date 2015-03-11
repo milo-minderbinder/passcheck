@@ -2,6 +2,7 @@ package co.insecurity.util.passcheck;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,11 +18,10 @@ import co.insecurity.util.BloomFilter;
 public class PassCheck {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PassCheck.class);
-	private static final Path DEFAULT_DATA_FILE = 
-			Paths.get(PassCheck.class.getResource("/passcheck.dat").getPath());
+	private static final String DEFAULT_DATA_FILE = "passcheck.dat";
 	private static final String DEFAULT_FP_PROBABILITY = "0.001";
 	
-	private Path dataFile;
+	private Path customDataFile;
 	private double fpProbability;
 	private int minLength;
 	private int maxLength;
@@ -49,13 +49,22 @@ public class PassCheck {
 				props.getProperty("falsePositiveProbability", DEFAULT_FP_PROBABILITY));
 		
 		if (props.containsKey("datafile")) {
-			Path customDataFile = Paths.get(props.getProperty("datafile"));
-			if (customDataFile.toFile().isFile())
-				dataFile = customDataFile;
-			else
-				dataFile = DEFAULT_DATA_FILE;
-		} else 
-			dataFile = DEFAULT_DATA_FILE;
+			String dataFile = props.getProperty("datafile");
+			Path dataFilePath = Paths.get(dataFile);
+			if (dataFilePath.toFile().isFile()) {
+				LOG.info("Using custom PassCheck data file: {}", 
+						dataFilePath.toAbsolutePath());
+				customDataFile = dataFilePath;
+			}
+			else {
+				LOG.warn("Using default PassCheck data file, unable to locate custom file: {}",
+						dataFile);
+				customDataFile = null;
+			}
+		} else {
+			LOG.info("Using default PassCheck data file");
+			customDataFile = null;
+		}
 		
 		minLength = Integer.parseInt(props.getProperty("minPasswordLength", "-1"));
 		maxLength = Integer.parseInt(props.getProperty("maxPasswordLength", "-1"));
@@ -64,11 +73,19 @@ public class PassCheck {
 	}
 	
 	private TreeSet<String> loadPasswordData() {
-		LOG.info("Loading password data from file: {}", dataFile);
 		TreeSet<String> passwordSet = new TreeSet<String>();
 		int numAdded = 0;
-		try (BufferedReader reader = 
-				Files.newBufferedReader(dataFile, Charset.forName("ISO-8859-1"))){
+		BufferedReader reader;
+		try {
+			if (customDataFile != null) {
+				LOG.info("Loading password data from custom data file: {}", customDataFile.toAbsolutePath());
+				reader = Files.newBufferedReader(customDataFile, Charset.forName("ISO-8859-1"));
+			}
+			else {
+				LOG.info("Loading password data from default data file");
+				reader = new BufferedReader(new InputStreamReader(
+						PassCheck.class.getClassLoader().getResourceAsStream(DEFAULT_DATA_FILE)));
+			}
 			String line = null;
 			while ((line = reader.readLine()) != null) {
 				String[] item = line.split("\t");
@@ -86,7 +103,7 @@ public class PassCheck {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			LOG.error("Error while processing data file: {}", dataFile);
+			LOG.error("Error while processing data file");
 			return null;
 		}
 		return passwordSet;
@@ -124,5 +141,12 @@ public class PassCheck {
 			LOG.debug("Did not find password in filter: {}", password);
 			return false;
 		}
+	}
+	
+	public static void main(String[] args) {
+		PassCheck pc = new PassCheck();
+		pc.isCommon("password");
+		pc.isCommon("dog");
+		pc.isCommon("oibeinvniciapifgpiupioufvjkpausepioupiofv8994t8hbv");
 	}
 }
