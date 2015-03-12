@@ -8,7 +8,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Properties;
 import java.util.TreeSet;
 
 import org.slf4j.Logger;
@@ -39,20 +38,26 @@ public class PassCheck {
 		if (config.getIgnoreCase())
 			password = password.toLowerCase();
 		
-		if ((config.getMinLength() != -1) && password.length() < config.getMinLength()) {
-			LOG.debug("Password did not meet minimum length requirements: {}", password);
+		if ((config.getMinLength() != PassCheckConfig.MIN_LENGTH_DISABLED) 
+				&& password.length() < config.getMinLength()) {
+			LOG.debug("Password did not meet minimum length requirements: {}", 
+					password);
 			return false;
 		}
-		if ((config.getMaxLength() != -1) && password.length() > config.getMaxLength()) {
-			LOG.debug("Password did not meet maximum length requirements: {}", password);
+		if ((config.getMaxLength() != PassCheckConfig.MAX_LENGTH_DISABLED) 
+				&& password.length() > config.getMaxLength()) {
+			LOG.debug("Password did not meet maximum length requirements: {}", 
+					password);
 			return false;
 		}
 		if (filter.contains(password)) {
-			LOG.debug("Found password in filter: {}", password);
+			LOG.debug("Found password in filter: {}", 
+					password);
 			return true;
 		}
 		else {
-			LOG.debug("Did not find password in filter: {}", password);
+			LOG.debug("Did not find password in filter: {}", 
+					password);
 			return false;
 		}
 	}
@@ -62,14 +67,14 @@ public class PassCheck {
 		TreeSet<String> passwords = new TreeSet<String>();
 		String line = null;
 		while ((line = reader.readLine()) != null) {
-			if ((config.getMinLength() != -1) && (
-					config.getMinLength() > line.length()))
+			if ((config.getMinLength() != PassCheckConfig.MIN_LENGTH_DISABLED) 
+					&& (config.getMinLength() > line.length()))
 				continue;
-			if ((config.getMaxLength() != -1) && 
-					(config.getMaxLength() < line.length()))
+			if ((config.getMaxLength() != PassCheckConfig.MAX_LENGTH_DISABLED) 
+					&& (config.getMaxLength() < line.length()))
 				continue;
-			if ((config.getMaxItems() != -1) && 
-					((passwords.size() + 1) >= config.getMaxItems()))
+			if ((config.getMaxItems() != PassCheckConfig.MAX_ITEMS_DISABLED) 
+					&& ((passwords.size() + 1) >= config.getMaxItems()))
 				return passwords;
 			if (config.getIgnoreCase())
 				passwords.add(line.toLowerCase());
@@ -141,12 +146,5 @@ public class PassCheck {
 		filter.addAll(passwordSet);
 
 		return filter;
-	}
-	
-	public static void main(String[] args) {
-		PassCheck pc = new PassCheck();
-		pc.isCommon("password");
-		pc.isCommon("dog");
-		pc.isCommon("oibeinvniciapifgpiupioufvjkpausepioupiofv8994t8hbv");
 	}
 }

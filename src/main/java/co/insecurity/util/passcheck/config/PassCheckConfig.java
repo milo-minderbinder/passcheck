@@ -3,9 +3,12 @@ package co.insecurity.util.passcheck.config;
 public final class PassCheckConfig {
 	
 	public static final double DEFAULT_FP_PROBABILITY = 0.001;
-	public static final int DEFAULT_MIN_LENGTH = -1;
-	public static final int DEFAULT_MAX_LENGTH = -1;
-	public static final int DEFAULT_MAX_ITEMS = -1;
+	public static final int MIN_LENGTH_DISABLED = -1;
+	public static final int DEFAULT_MIN_LENGTH = MIN_LENGTH_DISABLED;
+	public static final int MAX_LENGTH_DISABLED = -1;
+	public static final int DEFAULT_MAX_LENGTH = MAX_LENGTH_DISABLED;
+	public static final int MAX_ITEMS_DISABLED = -1;
+	public static final int DEFAULT_MAX_ITEMS = MAX_ITEMS_DISABLED;
 	public static final boolean DEFAULT_IGNORE_CASE = false;
 	public static final String DEFAULT_DATA_FILE = "passwords.dat";
 
