@@ -4,9 +4,6 @@ apply plugin: 'maven'
 apply plugin: 'maven-publish'
 apply plugin: 'eclipse'
 
-apply plugin: 'application'
-mainClassName = "co.insecurity.util.passcheck.PassCheck"
-
 repositories {
     jcenter()
     maven {

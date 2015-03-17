@@ -2,9 +2,7 @@ package co.insecurity.util.passcheck;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,17 +21,21 @@ public class PassCheck {
 	
 	private final PassCheckConfig config;
 	private BloomFilter<String> filter;
-	private int numElements = 0;
+	private int numAdded = 0;
 	
 	
 	public PassCheck() {
-		this.config = PassCheckConfig.getConfig();
-		LOG.debug("Loaded password data successfully? {}", this.loadPasswordData());
+		this(PassCheckConfig.getConfig());
 	}
 	
 	public PassCheck(PassCheckConfig config) {
-		this.config = config;
-		LOG.debug("Loaded password data successfully? {}", this.loadPasswordData());
+		this.config = PassCheckConfig.fromOther(config);
+		try {
+			loadPasswordData();
+		} catch (IOException e) {
+			LOG.error("Error while processing data file");
+			LOG.debug("Exception message: {}", e);
+		}
 	}
 	
 	public boolean isCommon(String password) {
@@ -72,93 +74,76 @@ public class PassCheck {
 				&& (config.getMaxLength() < item.length()))
 			return false;
 		if ((config.getMaxItems() != PassCheckConfig.MAX_ITEMS_DISABLED) 
-				&& ((numElements + 1) >= config.getMaxItems()))
+				&& ((numAdded) >= config.getMaxItems()))
 			return false;
 		if (config.getIgnoreCase())
 			item = item.toLowerCase();
 		if (filter.add(item)) {
-			numElements++;
+			numAdded++;
 			return true;
 		} else {
 			return false;
 		}
 	}
 	
-	private boolean readDefaultPasswordData() throws IOException {
-		LOG.info("Loading password data from default data file");
-		int numExpectedElements = 0;
-		InputStream resourceStream = PassCheck.class.getClassLoader()
-				.getResourceAsStream(PassCheckConfig.DEFAULT_DATA_FILE);
-		try (BufferedReader reader = new BufferedReader(
-				new InputStreamReader(resourceStream))) {
-			while (reader.readLine() != null) {
-				numExpectedElements++;
+	private BufferedReader getDefaultPasswordDataReader() {
+		LOG.debug("Reading password data from default data file.");
+		return new BufferedReader(new InputStreamReader(
+				PassCheck.class.getClassLoader()
+				.getResourceAsStream(PassCheckConfig.DEFAULT_DATA_FILE)));
+	}
+	
+	private BufferedReader getPasswordDataReader() {
+		String dataFile = config.getPasswordDataFile();
+		if (dataFile != null) {
+			LOG.debug("Opening custom password data file: {}",
+					dataFile);
+			Path dataFilePath = Paths.get(dataFile);
+			if (Files.exists(dataFilePath)) {
+				try {
+					return Files.newBufferedReader(dataFilePath);
+				} catch (IOException e) {
+					LOG.warn("IOException when opening custom data file: {}",
+							dataFilePath);
+					return getDefaultPasswordDataReader();
+				}
 			}
-		} catch (IOException e) {
-			LOG.error("Error while processing default data file");
-			LOG.debug("Stack trace: {}", e);
-			return false;
+			LOG.warn("Password data file does not exist: {}", dataFile);
+			return getDefaultPasswordDataReader();
 		}
-		
+		return getDefaultPasswordDataReader();
+	}
+	
+	private void loadPasswordData() throws IOException {
+		LOG.info("Processing password data...");
+		int numExpected = 0;
+		try (BufferedReader reader = getPasswordDataReader()) {
+			while (reader.readLine() != null)
+				numExpected++;
+		}
 		// Create filter and add elements
-		filter = new FilterBuilder().expectedElements(numExpectedElements)
-				.falsePositiveProbability(config.getFalsePositiveProbability())
-				.buildBloomFilter();
-		LOG.debug("fb: {}", filter.getFalsePositiveProbability());
-		resourceStream = PassCheck.class.getClassLoader()
-				.getResourceAsStream(PassCheckConfig.DEFAULT_DATA_FILE);
-		try (BufferedReader reader = new BufferedReader(
-				new InputStreamReader(resourceStream))) {
+		double fpProbability = config.getFalsePositiveProbability();
+		LOG.info("Creating filter with {} false poositive probability "
+				+ "and {} expected elements.", 
+				fpProbability, numExpected);
+		filter = new FilterBuilder(numExpected, fpProbability
+				).buildBloomFilter();
+		try (BufferedReader reader = getPasswordDataReader()) {
 			String item = null;
-			while ((item = reader.readLine()) != null) {
+			while ((item = reader.readLine()) != null)
 				addItem(item);
-			}
-		} catch (IOException e) {
-			LOG.error("Error while processing default data file");
-			LOG.debug("Stack trace: {}", e);
-			return false;
 		}
-		
-		if (numElements > numExpectedElements) {
-			LOG.error("More elements added then expected. Added {}, but expected {}",
-					numElements, numExpectedElements);
-			return false;
+		// Verify that more passwords were not added than were initially 
+		// found. Ideally, this method should lock the resource/file 
+		// during processing, to prevent concurrent access issues.
+		if (numAdded > numExpected) {
+			String msg = String.format(
+					"Attempted to add %d passwords but  expected %d."
+					+ "Did the data file change?", 
+					numAdded,
+					numExpected);
+			LOG.error(msg);
+			throw new IOException(msg);
 		}
-		return true;
-	}
-	
-	private boolean readCustomPasswordData(Path dataFile, Charset charset) {
-		LOG.info("Loading password data from {} with charset: {}", 
-				dataFile.toAbsolutePath(), charset.name());
-		try (BufferedReader reader = 
-				Files.newBufferedReader(dataFile, charset)) {
-			return true; //processPasswordData(reader);
-		} catch (IOException e) {
-			LOG.error("Error while processing data file");
-			return false;
-		}
-	}
-	
-	private boolean loadPasswordData() {
-		if (config.getPasswordDataFile() != null) {
-			Path dataFile = Paths.get(config.getPasswordDataFile());
-			if (Files.exists(dataFile))
-				return readCustomPasswordData(dataFile, Charset.defaultCharset());
-			else 
-				LOG.error("Custom password data file does not exist: {}", 
-						dataFile);
-		}
-		return readDefaultPasswordData();
-	}
-	
-	public static void main(String[] args) {
-		PassCheck pc = new PassCheck(PassCheckConfig.getConfig()
-				.withFalsePositiveProbability(0.001)
-				.withMinLength(8));
-		LOG.info("{}", pc.config.getMinLength());
-		LOG.info("{}", pc.config.getFalsePositiveProbability());
-		pc.isCommon("dog");
-		pc.isCommon("password");
-		pc.isCommon("asdfaetic99c 0v97834f akjsdhfh3f3g");
 	}
 }

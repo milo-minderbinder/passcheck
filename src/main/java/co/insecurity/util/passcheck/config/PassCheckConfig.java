@@ -1,7 +1,12 @@
 package co.insecurity.util.passcheck.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public final class PassCheckConfig {
 	
+	private static final Logger LOG = LoggerFactory.getLogger(PassCheckConfig.class);
+
 	public static final double DEFAULT_FP_PROBABILITY = 0.001;
 	public static final int MIN_LENGTH_DISABLED = -1;
 	public static final int DEFAULT_MIN_LENGTH = MIN_LENGTH_DISABLED;
@@ -24,6 +29,25 @@ public final class PassCheckConfig {
 	
 	public static PassCheckConfig getConfig() {
 		return new PassCheckConfig();
+	}
+	
+	public static PassCheckConfig fromOther(PassCheckConfig other) {
+		LOG.debug("Copying {}", other.toString());
+		PassCheckConfig newConfig = getConfig()
+				.withFalsePositiveProbability(
+						other.getFalsePositiveProbability())
+				.withMinLength(
+						other.getMinLength())
+				.withMaxLength(
+						other.getMaxLength())
+				.withMaxItems(
+						other.getMaxItems())
+				.withIgnoreCase(
+						other.getIgnoreCase())
+				.withPasswordDataFile(
+						other.getPasswordDataFile());
+		LOG.debug("Copied config: {}", newConfig.toString());
+		return newConfig;
 	}
 	
 	public PassCheckConfig withFalsePositiveProbability(double probability) {
@@ -78,5 +102,18 @@ public final class PassCheckConfig {
 	
 	public String getPasswordDataFile() {
 		return this.passwordDataFile;
+	}
+
+	@Override
+	public String toString() {
+		return String.format("PassCheckConfig["
+				+ "fpProbability: %f, "
+				+ "minLength: %d, "
+				+ "maxLength: %d, "
+				+ "maxItems: %d, "
+				+ "ignoreCase: %b, "
+				+ "passwordDataFile: %s]",
+				fpProbability, minLength, maxLength, 
+				maxItems, ignoreCase, passwordDataFile);
 	}
 }
