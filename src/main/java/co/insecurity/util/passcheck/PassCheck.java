@@ -8,12 +8,13 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.TreeSet;
+
+import orestes.bloomfilter.BloomFilter;
+import orestes.bloomfilter.FilterBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import co.insecurity.util.BloomFilter;
 import co.insecurity.util.passcheck.config.PassCheckConfig;
 
 public class PassCheck {
@@ -22,16 +23,17 @@ public class PassCheck {
 	
 	private final PassCheckConfig config;
 	private BloomFilter<String> filter;
+	private int numElements = 0;
 	
 	
 	public PassCheck() {
 		this.config = PassCheckConfig.getConfig();
-		this.filter = createFilter();
+		LOG.debug("Loaded password data successfully? {}", this.loadPasswordData());
 	}
 	
 	public PassCheck(PassCheckConfig config) {
 		this.config = config;
-		this.filter = createFilter();
+		LOG.debug("Loaded password data successfully? {}", this.loadPasswordData());
 	}
 	
 	public boolean isCommon(String password) {
@@ -62,89 +64,101 @@ public class PassCheck {
 		}
 	}
 	
-	private TreeSet<String> processPasswordData(BufferedReader reader) 
-			throws IOException {
-		TreeSet<String> passwords = new TreeSet<String>();
-		String line = null;
-		while ((line = reader.readLine()) != null) {
-			if ((config.getMinLength() != PassCheckConfig.MIN_LENGTH_DISABLED) 
-					&& (config.getMinLength() > line.length()))
-				continue;
-			if ((config.getMaxLength() != PassCheckConfig.MAX_LENGTH_DISABLED) 
-					&& (config.getMaxLength() < line.length()))
-				continue;
-			if ((config.getMaxItems() != PassCheckConfig.MAX_ITEMS_DISABLED) 
-					&& ((passwords.size() + 1) >= config.getMaxItems()))
-				return passwords;
-			if (config.getIgnoreCase())
-				passwords.add(line.toLowerCase());
-			else
-				passwords.add(line);
+	private boolean addItem(String item) {
+		if ((config.getMinLength() != PassCheckConfig.MIN_LENGTH_DISABLED) 
+				&& (config.getMinLength() > item.length()))
+			return false;
+		if ((config.getMaxLength() != PassCheckConfig.MAX_LENGTH_DISABLED) 
+				&& (config.getMaxLength() < item.length()))
+			return false;
+		if ((config.getMaxItems() != PassCheckConfig.MAX_ITEMS_DISABLED) 
+				&& ((numElements + 1) >= config.getMaxItems()))
+			return false;
+		if (config.getIgnoreCase())
+			item = item.toLowerCase();
+		if (filter.add(item)) {
+			numElements++;
+			return true;
+		} else {
+			return false;
 		}
-		return passwords;
 	}
 	
-	private TreeSet<String> readDefaultPasswordData() {
+	private boolean readDefaultPasswordData() throws IOException {
 		LOG.info("Loading password data from default data file");
+		int numExpectedElements = 0;
 		InputStream resourceStream = PassCheck.class.getClassLoader()
 				.getResourceAsStream(PassCheckConfig.DEFAULT_DATA_FILE);
 		try (BufferedReader reader = new BufferedReader(
 				new InputStreamReader(resourceStream))) {
-			return processPasswordData(reader);
+			while (reader.readLine() != null) {
+				numExpectedElements++;
+			}
 		} catch (IOException e) {
 			LOG.error("Error while processing default data file");
 			LOG.debug("Stack trace: {}", e);
-			return null;
+			return false;
 		}
+		
+		// Create filter and add elements
+		filter = new FilterBuilder().expectedElements(numExpectedElements)
+				.falsePositiveProbability(config.getFalsePositiveProbability())
+				.buildBloomFilter();
+		LOG.debug("fb: {}", filter.getFalsePositiveProbability());
+		resourceStream = PassCheck.class.getClassLoader()
+				.getResourceAsStream(PassCheckConfig.DEFAULT_DATA_FILE);
+		try (BufferedReader reader = new BufferedReader(
+				new InputStreamReader(resourceStream))) {
+			String item = null;
+			while ((item = reader.readLine()) != null) {
+				addItem(item);
+			}
+		} catch (IOException e) {
+			LOG.error("Error while processing default data file");
+			LOG.debug("Stack trace: {}", e);
+			return false;
+		}
+		
+		if (numElements > numExpectedElements) {
+			LOG.error("More elements added then expected. Added {}, but expected {}",
+					numElements, numExpectedElements);
+			return false;
+		}
+		return true;
 	}
 	
-	private TreeSet<String> readCustomPasswordData(Path dataFile, Charset charset) {
+	private boolean readCustomPasswordData(Path dataFile, Charset charset) {
 		LOG.info("Loading password data from {} with charset: {}", 
 				dataFile.toAbsolutePath(), charset.name());
 		try (BufferedReader reader = 
 				Files.newBufferedReader(dataFile, charset)) {
-			return processPasswordData(reader);
+			return true; //processPasswordData(reader);
 		} catch (IOException e) {
 			LOG.error("Error while processing data file");
-			return null;
+			return false;
 		}
 	}
 	
-	private TreeSet<String> loadPasswordData() {
-		TreeSet<String> passwords = null;
+	private boolean loadPasswordData() {
 		if (config.getPasswordDataFile() != null) {
 			Path dataFile = Paths.get(config.getPasswordDataFile());
-			if (!Files.exists(dataFile)) {
-				LOG.error("Custom password data file does not exist: {}",
+			if (Files.exists(dataFile))
+				return readCustomPasswordData(dataFile, Charset.defaultCharset());
+			else 
+				LOG.error("Custom password data file does not exist: {}", 
 						dataFile);
-				return readDefaultPasswordData();
-			}
-			for (Charset charset : Charset.availableCharsets().values()) {
-				passwords = readCustomPasswordData(dataFile, charset);
-				if (passwords != null) {
-					LOG.debug("Loaded password file with charset: {}", 
-							charset.name());
-					return passwords;
-				}
-			}
-			LOG.error("Unable to read custom password data file with any charset: {}", 
-					dataFile);
 		}
 		return readDefaultPasswordData();
 	}
 	
-	private BloomFilter<String> createFilter() {
-		TreeSet<String> passwordSet = loadPasswordData();
-		LOG.info("Creating BloomFilter with falsePositiveProbability={} "
-				+ "and expectedNumberOfElements={}", 
-				config.getFalsePositiveProbability(), passwordSet.size());
-		filter = new BloomFilter<String>(
-				config.getFalsePositiveProbability(), 
-				passwordSet.size());
-		
-		LOG.debug("Adding {} passwords to filter...", passwordSet.size());
-		filter.addAll(passwordSet);
-
-		return filter;
+	public static void main(String[] args) {
+		PassCheck pc = new PassCheck(PassCheckConfig.getConfig()
+				.withFalsePositiveProbability(0.001)
+				.withMinLength(8));
+		LOG.info("{}", pc.config.getMinLength());
+		LOG.info("{}", pc.config.getFalsePositiveProbability());
+		pc.isCommon("dog");
+		pc.isCommon("password");
+		pc.isCommon("asdfaetic99c 0v97834f akjsdhfh3f3g");
 	}
 }

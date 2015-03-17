@@ -4,11 +4,18 @@ apply plugin: 'maven'
 apply plugin: 'maven-publish'
 apply plugin: 'eclipse'
 
+apply plugin: 'application'
+mainClassName = "co.insecurity.util.passcheck.PassCheck"
+
 repositories {
     jcenter()
+    maven {
+        url 'https://raw.githubusercontent.com/Baqend/Orestes-Bloomfilter/master/maven-repo'
+    }
 }
 
 dependencies {
+	compile 'com.baqend:bloom-filter:1.0.3'
 	compile 'org.slf4j:slf4j-api:1.7.10'
 	runtime 'org.slf4j:slf4j-log4j12:1.7.10'
 

@@ -12,29 +12,14 @@ public final class PassCheckConfig {
 	public static final boolean DEFAULT_IGNORE_CASE = false;
 	public static final String DEFAULT_DATA_FILE = "passwords.dat";
 
-	private double fpProbability;
-	private int minLength;
-	private int maxLength;
-	private int maxItems;
-	private boolean ignoreCase;
-	private String passwordDataFile;
+	private double fpProbability = DEFAULT_FP_PROBABILITY;
+	private int minLength = DEFAULT_MIN_LENGTH;
+	private int maxLength = DEFAULT_MAX_LENGTH;
+	private int maxItems = DEFAULT_MAX_ITEMS;
+	private boolean ignoreCase = DEFAULT_IGNORE_CASE;
+	private String passwordDataFile = null;
 	
 	private PassCheckConfig() {
-		fpProbability = DEFAULT_FP_PROBABILITY;
-		minLength = DEFAULT_MIN_LENGTH;
-		maxLength = DEFAULT_MAX_LENGTH;
-		maxItems = DEFAULT_MAX_ITEMS;;
-		ignoreCase = DEFAULT_IGNORE_CASE;
-		passwordDataFile = null;
-	}
-	
-	private PassCheckConfig(PassCheckConfig another) {
-		PassCheckConfig config = new PassCheckConfig();
-		config.fpProbability = another.fpProbability;
-		config.ignoreCase = another.ignoreCase;
-		config.maxItems = another.maxItems;
-		config.minLength = another.minLength;
-		config.maxLength = another.maxLength;
 	}
 	
 	public static PassCheckConfig getConfig() {
@@ -42,9 +27,8 @@ public final class PassCheckConfig {
 	}
 	
 	public PassCheckConfig withFalsePositiveProbability(double probability) {
-		PassCheckConfig newConfig = new PassCheckConfig(this);
-		newConfig.fpProbability = probability;
-		return newConfig;
+		this.fpProbability = probability;
+		return this;
 	}
 	
 	public double getFalsePositiveProbability() {
@@ -52,9 +36,8 @@ public final class PassCheckConfig {
 	}
 	
 	public PassCheckConfig withMinLength(int length) {
-		PassCheckConfig newConfig = new PassCheckConfig(this);
-		newConfig.minLength = length;
-		return newConfig;
+		this.minLength = length;
+		return this;
 	}
 	
 	public int getMinLength() {
@@ -62,9 +45,8 @@ public final class PassCheckConfig {
 	}
 	
 	public PassCheckConfig withMaxLength(int length) {
-		PassCheckConfig newConfig = new PassCheckConfig(this);
-		newConfig.maxLength = length;
-		return newConfig;
+		this.maxLength = length;
+		return this;
 	}
 	
 	public int getMaxLength() {
@@ -72,9 +54,8 @@ public final class PassCheckConfig {
 	}
 	
 	public PassCheckConfig withMaxItems(int numItems) {
-		PassCheckConfig newConfig = new PassCheckConfig(this);
-		newConfig.maxItems = numItems;
-		return newConfig;
+		this.maxItems = numItems;
+		return this;
 	}
 	
 	public int getMaxItems() {
@@ -82,9 +63,8 @@ public final class PassCheckConfig {
 	}
 
 	public PassCheckConfig withIgnoreCase(boolean willIgnoreCase) {
-		PassCheckConfig newConfig = new PassCheckConfig(this);
-		newConfig.ignoreCase= willIgnoreCase;
-		return newConfig;
+		this.ignoreCase= willIgnoreCase;
+		return this;
 	}
 	
 	public boolean getIgnoreCase() {
@@ -92,9 +72,8 @@ public final class PassCheckConfig {
 	}
 	
 	public PassCheckConfig withPasswordDataFile(String dataFilePath) {
-		PassCheckConfig newConfig = new PassCheckConfig(this);
-		newConfig.passwordDataFile = dataFilePath;
-		return newConfig;
+		this.passwordDataFile = dataFilePath;
+		return this;
 	}
 	
 	public String getPasswordDataFile() {
