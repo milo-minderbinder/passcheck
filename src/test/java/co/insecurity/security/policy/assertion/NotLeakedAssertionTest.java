@@ -63,8 +63,7 @@ public class NotLeakedAssertionTest {
 				.Builder().withFalsePositiveProbability(0.001)
 				.withMaxNumPasswords(2)
 				.withIgnoreCase(true)
-				.withPasswordDataFile("src\\test\\"
-						+ "resources\\testpasswords.dat")
+				.withPasswordDataFile("src/test/resources/testpasswords.dat")
 				.build();
 		Assert.assertEquals(
 				"Failure - false positive probability should be 0.001",
