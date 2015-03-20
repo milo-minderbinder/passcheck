@@ -1,1 +1,1 @@
-# passcheck
+# password-policy
