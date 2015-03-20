@@ -16,7 +16,7 @@ public class SimplePasswordPolicy extends PasswordPolicy {
 
 	public SimplePasswordPolicy() {
 		assertions = new LinkedHashSet<PolicyAssertion>();
-		LengthAssertion length = new LengthAssertion(LengthAssertion.DISABLED, 8);
+		LengthAssertion length = new LengthAssertion(8, LengthAssertion.DISABLED);
 		assertions.add(length);
 		try {
 			assertions.add(new NotLeakedAssertion
