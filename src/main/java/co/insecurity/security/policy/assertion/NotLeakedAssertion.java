@@ -19,6 +19,8 @@ public class NotLeakedAssertion implements PolicyAssertion {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NotLeakedAssertion.class);
 	
+	public static final Result LEAKED_PASSWORD =
+			new Result(false, "Password is too common, or has been leaked.");
 	public static final int MAX_NUM_PASSWORDS_DISABLED = -1;
 
 	public static class Builder {
@@ -176,10 +178,10 @@ public class NotLeakedAssertion implements PolicyAssertion {
 	}
 	
 	@Override
-	public boolean isTrueFor(String password) {
+	public Result verify(String password) {
 		if (password == null) {
 			LOG.debug("Assertion Failed - password is null");
-			return false;
+			return Result.NULL_VALUE;
 		}
 		if (ignoreCase) {
 			LOG.debug("Ignoring case for password: {}", password);
@@ -188,10 +190,10 @@ public class NotLeakedAssertion implements PolicyAssertion {
 		if (passwordFilter.contains(password)) {
 			LOG.debug("Assertion Failed - found password in filter: {}",
 					password);
-			return false;
+			return LEAKED_PASSWORD;
 		}
 		LOG.debug("Assertion Passed - did not find password in filter: {}", 
 				password);
-		return true;
+		return Result.SUCCESS;
 	}
 }

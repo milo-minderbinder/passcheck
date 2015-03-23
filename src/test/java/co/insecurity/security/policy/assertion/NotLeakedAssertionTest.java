@@ -45,16 +45,24 @@ public class NotLeakedAssertionTest {
 	
 	@Test
 	public void thatNullFailsDefaultNotLeakedAssertion() {
+		PolicyAssertion.Result result = notLeakedPA.verify(null);
 		Assert.assertFalse(
 				"Failure - null value should fail policy assertion",
-				notLeakedPA.isTrueFor(null));
+				result.isSuccess());
+		Assert.assertEquals("Failure - result should be NULL_VALUE", 
+				PolicyAssertion.Result.NULL_VALUE,
+				result);
 	}
 
 	@Test
 	public void thatPasswordFailsDefaultNotLeakedAssertion() {
+		PolicyAssertion.Result result = notLeakedPA.verify("password");
 		Assert.assertFalse(
 				"Failure - default word list should contain 'password'",
-				notLeakedPA.isTrueFor("password"));
+				result.isSuccess());
+		Assert.assertEquals("Failure - result should be LEAKED_PASSWORD", 
+				NotLeakedAssertion.LEAKED_PASSWORD,
+				result);
 	}
 	
 	@Test
@@ -85,19 +93,18 @@ public class NotLeakedAssertionTest {
 				(customDataAssertion.getNumPasswords() == 2));
 		Assert.assertFalse(
 				"Failure - filter should contain 'password'",
-				customDataAssertion.isTrueFor("password"));
+				customDataAssertion.verify("password").isSuccess());
 		Assert.assertFalse(
 				"Failure - filter should contain 'dog'",
-				customDataAssertion.isTrueFor("dog"));
+				customDataAssertion.verify("dog").isSuccess());
 		Assert.assertFalse(
 				"Failure - filter should contain 'PASSWORD'",
-				customDataAssertion.isTrueFor("PASSWORD"));
+				customDataAssertion.verify("PASSWORD").isSuccess());
 		Assert.assertTrue(
 				"Failure - filter should not contain 'i should be ignored'",
-				customDataAssertion.isTrueFor("i should be ignored"));
+				customDataAssertion.verify("i should be ignored").isSuccess());
 		Assert.assertTrue(
 				"Failure - filter should not contain 'cat'",
-				customDataAssertion.isTrueFor("cat"));
-
+				customDataAssertion.verify("cat").isSuccess());
 	}
 }
