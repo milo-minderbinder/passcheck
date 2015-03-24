@@ -7,10 +7,10 @@ import co.insecurity.security.policy.assertion.PolicyAssertion;
 import co.insecurity.security.policy.assertion.PolicyAssertion.Result;
 
 /**
- * This abstract class provides the base logic required to programatically 
+ * This abstract class provides the base logic required to programmatically 
  * define a password policy, and implements convenience methods to check 
  * compliance against the policy.
- * 
+ * <p>
  * A {@code PasswordPolicy} is defined as a set of {@code PolicyAssertion}s 
  * that must all hold true for a given password, in order for that password 
  * to be considered in compliance with the policy.
@@ -20,16 +20,21 @@ import co.insecurity.security.policy.assertion.PolicyAssertion.Result;
  */
 public abstract class PasswordPolicy {
 	
+	/**
+	 * The set of {@code PolicyAssertion}s that must all return a successful 
+	 * {@code PolicyAssertion.Result} for a given password to comply with this 
+	 * {@code PasswordPolicy}
+	 */
 	protected Set<PolicyAssertion> assertions;
 	
 	/**
 	 * Evaluates the given password against each {@code PolicyAssertion} 
 	 * defined by the {@code PasswordPolicy} and returns the results.
-	 * 
-	 * This method returns both sucessful/passed assertions, and failed 
+	 * <p>
+	 * This method returns both successful/passed assertions and failed 
 	 * assertions.
 	 * 
-	 * @param password the password to evaluate against the policy
+	 * @param password the password to evaluate against this policy
 	 * @return the set of {@code PolicyAssertion.Result}s
 	 */
 	public Set<Result> evaluate(String password) {
@@ -41,9 +46,9 @@ public abstract class PasswordPolicy {
 	
 	/**
 	 * A convenience method to get only the {@code PolicyAssertion.Result}s 
-	 * which indicate a policy violation from an unfiltered set of results.
+	 * which indicate a policy violation from a set of results.
 	 * 
-	 * @param results an unfiltered set of {@code PolicyAssertion.Result}s
+	 * @param results a set of {@code PolicyAssertion.Result}s to search
 	 * @return the subsets of {@code Result}s raised by failed assertions
 	 */
 	public static Set<Result> getViolations(Set<Result> results) {

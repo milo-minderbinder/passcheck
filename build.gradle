@@ -4,11 +4,21 @@ apply plugin: 'maven'
 apply plugin: 'maven-publish'
 apply plugin: 'eclipse'
 
+
+task javadocJar(type: Jar) {
+	classifier = 'javadoc'
+	from javadoc
+}
+
 repositories {
     jcenter()
     maven {
         url 'https://raw.githubusercontent.com/Baqend/Orestes-Bloomfilter/master/maven-repo'
     }
+}
+
+artifacts {
+	archives javadocJar
 }
 
 dependencies {
