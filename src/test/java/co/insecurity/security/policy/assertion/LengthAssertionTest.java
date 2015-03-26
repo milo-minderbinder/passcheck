@@ -1,6 +1,5 @@
 package co.insecurity.security.policy.assertion;
 
-
 import org.junit.Assert;
 import org.junit.Test;
 

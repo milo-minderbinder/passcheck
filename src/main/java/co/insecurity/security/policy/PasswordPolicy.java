@@ -1,10 +1,13 @@
 package co.insecurity.security.policy;
 
-import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.LinkedHashMap;
 
 import co.insecurity.security.policy.assertion.PolicyAssertion;
 import co.insecurity.security.policy.assertion.PolicyAssertion.Result;
+
 
 /**
  * This abstract class provides the base logic required to programmatically 
@@ -35,27 +38,34 @@ public abstract class PasswordPolicy {
 	 * assertions.
 	 * 
 	 * @param password the password to evaluate against this policy
-	 * @return the set of {@code PolicyAssertion.Result}s
+	 * @return the {@code Map} of {@code PolicyAssertion}s to corresponding 
+	 * {@code PolicyAssertion.Result}s
 	 */
-	public Set<Result> evaluate(String password) {
-		Set<Result> results = new LinkedHashSet<Result>();
+	public Map<PolicyAssertion, Result> evaluate(String password) {
+		Map<PolicyAssertion, Result> results = 
+				new LinkedHashMap<PolicyAssertion, Result>();
 		for (PolicyAssertion assertion : assertions)
-			results.add(assertion.verify(password));
+			results.put(assertion, assertion.verify(password));
 		return results;
 	}
 	
 	/**
-	 * A convenience method to get only the {@code PolicyAssertion.Result}s 
-	 * which indicate a policy violation from a set of results.
+	 * A convenience method to get the subset which constitute a policy 
+	 * violation from a {@code Map} of {@code PolicyAssertion}s to 
+	 * corresponding {@code PolicyAssertion.Result}s.
 	 * 
-	 * @param results a set of {@code PolicyAssertion.Result}s to search
-	 * @return the subsets of {@code Result}s raised by failed assertions
+	 * @param results a {@code Map} of {@code PolicyAssertion}s and 
+	 * associated {@code PolicyAssertion.Result}s to search
+	 * @return the subset {@code Map} of {@code PolicyAssertion}s and 
+	 * corresponding failed {@code PolicyAssertion.Result}s
 	 */
-	public static Set<Result> getViolations(Set<Result> results) {
-		Set<Result> violations = new LinkedHashSet<Result>();
-		for (Result result : results) {
-			if (!result.isSuccess())
-				violations.add(result);
+	public static Map<PolicyAssertion, Result> getViolations(
+			Map<PolicyAssertion, Result> results) {
+		Map<PolicyAssertion, Result> violations = 
+				new LinkedHashMap<PolicyAssertion, Result>();
+		for (Entry<PolicyAssertion, Result> entry : results.entrySet()) {
+			if (!entry.getValue().isSuccess())
+				violations.put(entry.getKey(), entry.getValue());
 		}
 		return violations;
 	}

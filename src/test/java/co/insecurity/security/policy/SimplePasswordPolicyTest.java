@@ -1,13 +1,12 @@
 package co.insecurity.security.policy;
 
-
 import java.io.IOException;
 import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.Map;
 
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,10 +14,12 @@ import org.slf4j.LoggerFactory;
 import co.insecurity.security.policy.assertion.LengthAssertion;
 import co.insecurity.security.policy.assertion.NotLeakedAssertion;
 import co.insecurity.security.policy.assertion.PolicyAssertion;
+import co.insecurity.security.policy.assertion.PolicyAssertion.Result;
 
 class SimplePasswordPolicy extends PasswordPolicy {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(SimplePasswordPolicy.class);
+	private static final Logger LOG = 
+			LoggerFactory.getLogger(SimplePasswordPolicy.class);
 
 	public SimplePasswordPolicy() {
 		assertions = new LinkedHashSet<PolicyAssertion>();
@@ -50,28 +51,31 @@ public class SimplePasswordPolicyTest {
 	
 	@Test
 	public void thatPasswordFailsPolicy() {
-		Set<PolicyAssertion.Result> results = policy.evaluate("password");
+		Map<PolicyAssertion, Result> results = policy.evaluate("password");
 		Assert.assertNotNull("Failure - results should not be null",
 				results);
 		Assert.assertTrue("Failure - result should contain results",
 				(results.size() > 0));
-		Set<PolicyAssertion.Result> violations = PasswordPolicy.getViolations(results); 
+		Map<PolicyAssertion, Result> violations = 
+				PasswordPolicy.getViolations(results); 
 		Assert.assertNotNull("Failure - violations should not be null",
 				violations);
 		Assert.assertTrue("Failure - result should contain one violation",
 				(violations.size() == 1));
 		Assert.assertTrue("Failure - violations should include LEAKED_PASSWORD",
-				violations.contains(NotLeakedAssertion.LEAKED_PASSWORD));
+				violations.containsValue(NotLeakedAssertion.LEAKED_PASSWORD));
 	}
 	
 	@Test
 	public void thatSevenCharacterPasswordFailsPolicy() {
 		String password = "98V*-++";
-		Set<PolicyAssertion.Result> results = policy.evaluate(password);
-		Set<PolicyAssertion.Result> violations = PasswordPolicy.getViolations(results);
+		Map<PolicyAssertion, Result> results = policy.evaluate(password);
+		Map<PolicyAssertion, Result> violations = 
+				PasswordPolicy.getViolations(results);
 		Assert.assertTrue("Failure - result should contain one violation",
 				(violations.size() == 1));
-		Assert.assertTrue("Failure - password should fail minimum length assertion", 
-				violations.contains(LengthAssertion.INSUFFICIENT_LENGTH));
+		Assert.assertTrue(
+				"Failure - password should fail minimum length assertion", 
+				violations.containsValue(LengthAssertion.INSUFFICIENT_LENGTH));
 	}
 }

@@ -37,8 +37,7 @@ public class LengthAssertion implements PolicyAssertion {
 	 * password length, and which does not require a maximum password length.
 	 */
 	public LengthAssertion() { 
-		this.minLength = 9;
-		this.maxLength = DISABLED;
+		this(9, DISABLED);
 	}
 	
 	/**
