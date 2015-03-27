@@ -47,10 +47,6 @@ public class NotLeakedAssertion implements PolicyAssertion {
 	 */
 	public static final Result LEAKED_PASSWORD =
 			new Result(false, "Password is too common, or has been leaked.");
-	/**
-	 * Flag to disable the limit on the number of passwords in the filter
-	 */
-	public static final int MAX_NUM_PASSWORDS_DISABLED = -1;
 
 	/**
 	 * Builder class for {@code NotLeakedAssertion} instantiation, which 
@@ -65,11 +61,13 @@ public class NotLeakedAssertion implements PolicyAssertion {
 		
 		private static final String DEFAULT_DATA_FILE = "passwords.dat";
 		
-		private int numPasswords = 0;
+		private int numPasswords;
 		private double fpProbability;
-		private int maxNumPasswords;
 		private boolean ignoreCase;
 		private String passwordDataFile;
+		private String redisHost;
+		private int redisPort;
+		private String redisFilterName;
 		
 		/**
 		 * Instantiates a new {@code NotLeakedAssertion.Builder} with 
@@ -83,10 +81,13 @@ public class NotLeakedAssertion implements PolicyAssertion {
 		 * distributed jar.
 		 */
 		public Builder() {
+			this.numPasswords = 0;
 			this.fpProbability = 0.001;
-			this.maxNumPasswords = MAX_NUM_PASSWORDS_DISABLED;
 			this.ignoreCase = false;
 			this.passwordDataFile = null;
+			this.redisHost = null;
+			this.redisPort = -1;
+			this.redisFilterName = null;
 		}
 		
 		/**
@@ -100,20 +101,6 @@ public class NotLeakedAssertion implements PolicyAssertion {
 		 */
 		public Builder withFalsePositiveProbability(double probability) {
 			this.fpProbability = probability;
-			return this;
-		}
-		
-		/**
-		 * Returns an updated builder that will create a 
-		 * {@code NotLeakedAssertion} with the provided limit on the maximum 
-		 * number of passwords contained in the filter.
-		 * 
-		 * @param numPasswords the maximum number of passwords
-		 * @return this {@code Builder}, updated with the specified maximum 
-		 * number of passwords permitted in the filter
-		 */
-		public Builder withMaxNumPasswords(int numPasswords) {
-			this.maxNumPasswords = numPasswords;
 			return this;
 		}
 		
@@ -148,6 +135,13 @@ public class NotLeakedAssertion implements PolicyAssertion {
 			this.passwordDataFile = dataFile;
 			return this;
 		}
+		
+		public Builder withRedis(String host, int port, String filterName) {
+			this.redisHost = host;
+			this.redisPort = port;
+			this.redisFilterName = filterName;
+			return this;
+		}
 
 		/**
 		 * Checks that valid configuration parameters have been set and returns 
@@ -164,13 +158,25 @@ public class NotLeakedAssertion implements PolicyAssertion {
 			if (fpProbability <= 0)
 				throw new IllegalArgumentException(
 						"False positive probability must be greater than 0!");
-			if (maxNumPasswords < MAX_NUM_PASSWORDS_DISABLED)
-				throw new IllegalArgumentException(
-						"Maximum number of passwords must be greater than 0, "
-						+ "or set to MAX_NUM_PASSWORDS_DISABLED to disable "
-						+ "the maximum limit.");
-			return new NotLeakedAssertion(loadPasswordData(), 
-					numPasswords, fpProbability, maxNumPasswords, 
+			BloomFilter<String> filter = null;
+			if ((redisHost != null) && (redisPort > 0) && 
+					(redisFilterName != null)) {
+				LOG.info("Getting redis-backed bloom filter '{}', at {}:{}",
+						redisFilterName, redisHost, redisPort);
+				filter = new FilterBuilder().redisBacked(true)
+						.name(redisFilterName)
+						.redisHost(redisHost)
+						.redisPort(redisPort)
+						.falsePositiveProbability(fpProbability)
+						.buildBloomFilter();
+				if (filter.isEmpty()) {
+					LOG.info("Filter is empty - loading password data now!");
+					LOG.info("Data loaded successfully: {}", 
+							filter.union(loadPasswordData()));
+				}
+			} else 
+				filter = loadPasswordData();
+			return new NotLeakedAssertion(filter, numPasswords, fpProbability, 
 					ignoreCase, passwordDataFile);
 		}
 		
@@ -236,9 +242,6 @@ public class NotLeakedAssertion implements PolicyAssertion {
 			try (BufferedReader reader = getPasswordDataReader()) {
 				String password = null;
 				while ((password = reader.readLine()) != null) {
-					if ((maxNumPasswords != MAX_NUM_PASSWORDS_DISABLED) && 
-							(numPasswords >= maxNumPasswords))
-						return filter;
 					if (ignoreCase)
 						password = password.toLowerCase();
 					if (filter.add(password))
@@ -261,17 +264,15 @@ public class NotLeakedAssertion implements PolicyAssertion {
 	private final BloomFilter<String> passwordFilter;
 	private final int numPasswords;
 	private final double fpProbability;
-	private final int maxNumPasswords;
 	private final boolean ignoreCase;
 	private final String passwordDataFile;
 	
 	private NotLeakedAssertion(final BloomFilter<String> passwordFilter, 
 			int numPasswords, double fpProbability, 
-			int maxItems, boolean ignoreCase, String passwordDataFile) {
+			boolean ignoreCase, String passwordDataFile) {
 		this.passwordFilter = passwordFilter;
 		this.numPasswords = numPasswords;
 		this.fpProbability = fpProbability;
-		this.maxNumPasswords = maxItems;
 		this.ignoreCase = ignoreCase;
 		this.passwordDataFile = passwordDataFile;
 	}
@@ -296,16 +297,6 @@ public class NotLeakedAssertion implements PolicyAssertion {
 	 */
 	public double getFalsePositiveProbability() {
 		return fpProbability;
-	}
-	
-	/**
-	 * Gets the maximum number of passwords permitted when the filter was built 
-	 * from the password data file.
-	 * 
-	 * @return the maximum number of passwords allowed in the filter
-	 */
-	public int getMaxNumPasswords() {
-		return maxNumPasswords;
 	}
 	
 	/**

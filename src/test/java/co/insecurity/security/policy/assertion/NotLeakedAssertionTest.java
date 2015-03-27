@@ -28,10 +28,6 @@ public class NotLeakedAssertionTest {
 				0.001,
 				notLeakedPA.getFalsePositiveProbability(),
 				0.0);
-		Assert.assertEquals(
-				"Failure - default maxNumPasswords should be NotLeakedAssertion.DISABLED",
-				NotLeakedAssertion.MAX_NUM_PASSWORDS_DISABLED,
-				notLeakedPA.getMaxNumPasswords());
 		Assert.assertNull(
 				"Failure - default password data file should be null",
 				notLeakedPA.getPasswordDataFile());
@@ -69,8 +65,7 @@ public class NotLeakedAssertionTest {
 	public void thatCustomPasswordDataFileFunctions() throws IOException {
 		NotLeakedAssertion customDataAssertion = new NotLeakedAssertion
 				.Builder().withFalsePositiveProbability(0.001)
-				.withMaxNumPasswords(2)
-				.withIgnoreCase(true)
+				.withIgnoreCase(false)
 				.withPasswordDataFile("src/test/resources/testpasswords.dat")
 				.build();
 		Assert.assertEquals(
@@ -78,31 +73,27 @@ public class NotLeakedAssertionTest {
 				0.001,
 				customDataAssertion.getFalsePositiveProbability(),
 				0.0);
-		Assert.assertEquals(
-				"Failure - maxNumPasswords should be NotLeakedAssertion.DISABLED",
-				2,
-				customDataAssertion.getMaxNumPasswords());
 		Assert.assertNotNull(
 				"Failure - password data file should not be null",
 				customDataAssertion.getPasswordDataFile());
-		Assert.assertTrue(
-				"Failure - case should be ignored",
+		Assert.assertFalse(
+				"Failure - case should not be ignored",
 				customDataAssertion.getIgnoreCase());
 		Assert.assertTrue(
-				"Failure - should have 2 passwords loaded into the filter",
-				(customDataAssertion.getNumPasswords() == 2));
+				"Failure - should have 3 passwords loaded into the filter",
+				(customDataAssertion.getNumPasswords() == 3));
 		Assert.assertFalse(
 				"Failure - filter should contain 'password'",
 				customDataAssertion.verify("password").isSuccess());
+		Assert.assertTrue(
+				"Failure - filter should not contain 'pASSword'",
+				customDataAssertion.verify("pASSword").isSuccess());
 		Assert.assertFalse(
 				"Failure - filter should contain 'dog'",
 				customDataAssertion.verify("dog").isSuccess());
 		Assert.assertFalse(
-				"Failure - filter should contain 'PASSWORD'",
-				customDataAssertion.verify("PASSWORD").isSuccess());
-		Assert.assertTrue(
-				"Failure - filter should not contain 'i should be ignored'",
-				customDataAssertion.verify("i should be ignored").isSuccess());
+				"Failure - filter should contain 'DOG'",
+				customDataAssertion.verify("DOG").isSuccess());
 		Assert.assertTrue(
 				"Failure - filter should not contain 'cat'",
 				customDataAssertion.verify("cat").isSuccess());
