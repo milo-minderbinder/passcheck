@@ -62,6 +62,22 @@ public class NotLeakedAssertionTest {
 	}
 	
 	@Test
+	public void thatRedisBackedFilterFunctions() throws IOException {
+		NotLeakedAssertion redisBacked = new NotLeakedAssertion
+				.Builder().withFalsePositiveProbability(0.001)
+				.withIgnoreCase(false)
+				.withRedis("localhost", 6379, "testFilter")
+				.build();
+		PolicyAssertion.Result result = redisBacked.verify("password");
+		Assert.assertFalse(
+				"Failure - redis backed word list should contain 'password'",
+				result.isSuccess());
+		Assert.assertEquals("Failure - result should be LEAKED_PASSWORD", 
+				NotLeakedAssertion.LEAKED_PASSWORD,
+				result);
+	}
+	
+	@Test
 	public void thatCustomPasswordDataFileFunctions() throws IOException {
 		NotLeakedAssertion customDataAssertion = new NotLeakedAssertion
 				.Builder().withFalsePositiveProbability(0.001)
