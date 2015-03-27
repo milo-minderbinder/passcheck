@@ -66,7 +66,7 @@ public class NotLeakedAssertionTest {
 		NotLeakedAssertion redisBacked = new NotLeakedAssertion
 				.Builder().withFalsePositiveProbability(0.001)
 				.withIgnoreCase(false)
-				.withRedis("localhost", 6379, "testFilter")
+				.withRedis("redis", 6379, "testFilter")
 				.build();
 		PolicyAssertion.Result result = redisBacked.verify("password");
 		Assert.assertFalse(

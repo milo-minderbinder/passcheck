@@ -158,25 +158,8 @@ public class NotLeakedAssertion implements PolicyAssertion {
 			if (fpProbability <= 0)
 				throw new IllegalArgumentException(
 						"False positive probability must be greater than 0!");
-			BloomFilter<String> filter = null;
-			if ((redisHost != null) && (redisPort > 0) && 
-					(redisFilterName != null)) {
-				LOG.info("Getting redis-backed bloom filter '{}', at {}:{}",
-						redisFilterName, redisHost, redisPort);
-				filter = new FilterBuilder().redisBacked(true)
-						.name(redisFilterName)
-						.redisHost(redisHost)
-						.redisPort(redisPort)
-						.falsePositiveProbability(fpProbability)
-						.buildBloomFilter();
-				if (filter.isEmpty()) {
-					LOG.info("Filter is empty - loading password data now!");
-					LOG.info("Data loaded successfully: {}", 
-							filter.union(loadPasswordData()));
-				}
-			} else 
-				filter = loadPasswordData();
-			return new NotLeakedAssertion(filter, numPasswords, fpProbability, 
+			return new NotLeakedAssertion(loadPasswordData(), 
+					numPasswords, fpProbability, 
 					ignoreCase, passwordDataFile);
 		}
 		
@@ -237,8 +220,23 @@ public class NotLeakedAssertion implements PolicyAssertion {
 			LOG.info("Creating filter with {} false positive probability "
 					+ "and {} expected elements.", 
 					fpProbability, numExpected);
-			filter = new FilterBuilder(numExpected, fpProbability
-					).buildBloomFilter();
+			if ((redisHost != null) && (redisPort > 0) && 
+					(redisFilterName != null)) {
+				LOG.info("Getting redis-backed bloom filter '{}', at {}:{}",
+						redisFilterName, redisHost, redisPort);
+				filter = new FilterBuilder(numExpected, fpProbability).redisBacked(true)
+						.name(redisFilterName)
+						.redisHost(redisHost)
+						.redisPort(redisPort)
+						.falsePositiveProbability(fpProbability)
+						.buildBloomFilter();
+				if (!filter.isEmpty()) {
+					LOG.info("Filter is already populated!");
+					return filter;
+				}
+			} else 
+				filter = new FilterBuilder(numExpected, fpProbability
+						).buildBloomFilter();
 			try (BufferedReader reader = getPasswordDataReader()) {
 				String password = null;
 				while ((password = reader.readLine()) != null) {
