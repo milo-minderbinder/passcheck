@@ -230,7 +230,7 @@ public class NotLeakedAssertion implements PolicyAssertion {
 						.redisPort(redisPort)
 						.falsePositiveProbability(fpProbability)
 						.buildBloomFilter();
-				if (!filter.isEmpty()) {
+				if (!filter.getBitSet().isEmpty()) {
 					LOG.info("Filter is already populated!");
 					return filter;
 				}

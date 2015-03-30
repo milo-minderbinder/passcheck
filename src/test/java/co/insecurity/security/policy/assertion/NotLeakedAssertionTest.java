@@ -6,14 +6,23 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NotLeakedAssertionTest {
 	
+	private static final Logger LOG = LoggerFactory.getLogger(NotLeakedAssertionTest.class);
+
 	private static NotLeakedAssertion notLeakedPA;
 	
 	@BeforeClass
 	public static void setUpClass() throws IOException {
-		notLeakedPA = new NotLeakedAssertion.Builder().build();
+		//notLeakedPA = new NotLeakedAssertion.Builder().build();
+		notLeakedPA = (new NotLeakedAssertion.Builder())
+				.withFalsePositiveProbability(0.001)
+				.withIgnoreCase(false)
+				.withRedis("redis", 6379, "redisTestFilter")
+				.build();
 	}
 	
 	@AfterClass
@@ -63,9 +72,11 @@ public class NotLeakedAssertionTest {
 	
 	@Test
 	public void thatRedisBackedFilterFunctions() throws IOException {
+		LOG.info("Begin test: thatRedisBackedFilterFunctions");
 		NotLeakedAssertion redisBacked = new NotLeakedAssertion
 				.Builder().withFalsePositiveProbability(0.001)
 				.withIgnoreCase(false)
+				.withPasswordDataFile("src/test/resources/testpasswords.dat")
 				.withRedis("redis", 6379, "testFilter")
 				.build();
 		PolicyAssertion.Result result = redisBacked.verify("password");
@@ -75,6 +86,20 @@ public class NotLeakedAssertionTest {
 		Assert.assertEquals("Failure - result should be LEAKED_PASSWORD", 
 				NotLeakedAssertion.LEAKED_PASSWORD,
 				result);
+		
+		NotLeakedAssertion redisBacked2 = new NotLeakedAssertion
+				.Builder().withFalsePositiveProbability(0.001)
+				.withIgnoreCase(false)
+				.withPasswordDataFile("src/test/resources/testpasswords.dat")
+				.withRedis("redis", 6379, "testFilter")
+				.build();
+		PolicyAssertion.Result result2 = redisBacked.verify("password");
+		Assert.assertFalse(
+				"Failure - redis backed word list should contain 'password'",
+				result2.isSuccess());
+		Assert.assertEquals("Failure - result should be LEAKED_PASSWORD", 
+				NotLeakedAssertion.LEAKED_PASSWORD,
+				result2);
 	}
 	
 	@Test

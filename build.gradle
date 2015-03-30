@@ -5,20 +5,11 @@ apply plugin: 'maven-publish'
 apply plugin: 'eclipse'
 
 
-task javadocJar(type: Jar) {
-	classifier = 'javadoc'
-	from javadoc
-}
-
 repositories {
     jcenter()
     maven {
         url 'https://raw.githubusercontent.com/Baqend/Orestes-Bloomfilter/master/maven-repo'
     }
-}
-
-artifacts {
-	archives javadocJar
 }
 
 dependencies {
@@ -27,15 +18,4 @@ dependencies {
 	runtime 'org.slf4j:slf4j-log4j12:1.7.10'
 
     testCompile 'junit:junit:4.11'
-}
-
-test {
-  testLogging {
-    // Show that tests are run in the command-line output
-    events 'started', 'passed'
-  }
-}
-
-eclipse {
-	pathVariables 'GRADLE_HOME': file('/mnt/.gradle')
 }
